@@ -1,6 +1,6 @@
 (ns cycling-metrics.fit
-  (:import [com.garmin.fit Decode MesgBroadcaster RecordMesgListener RecordMesg]
-           [java.io InputStream]))
+  (:require [clojure.java.io :as io])
+  (:import [com.garmin.fit Decode MesgBroadcaster RecordMesgListener]))
 
 (defn parse-fit [file]
   (let [records (atom [])
@@ -13,7 +13,7 @@
                        (when (or power hr)
                          (swap! records conj {:power (or power 0) :heart-rate (or hr 0)})))))]
     (.addListener broadcaster listener)
-    (with-open [in (clojure.java.io/input-stream file)]
+    (with-open [in (io/input-stream file)]
        ;; The read method returns boolean (success)
        (.read decode in broadcaster))
     {:records @records}))

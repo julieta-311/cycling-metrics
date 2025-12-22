@@ -4,10 +4,9 @@
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [cycling-metrics.analysis :as analysis]
             [cycling-metrics.fit :as fit]
-            [clojure.java.io :as io]
             [cheshire.core :as json]))
 
-(defn home-handler [request]
+(defn home-handler [_request]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (html5

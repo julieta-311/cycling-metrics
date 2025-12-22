@@ -5,8 +5,9 @@
     0.0
     (/ (apply + coll) (count coll))))
 
-(defn calculate-ftp-stats [records]
+(defn calculate-ftp-stats 
   "Finds the best 20-minute power segment and estimates FTP and LTHR."
+  [records]
   (if (or (empty? records) (< (count records) 1200))
     {:ftp 0 :lthr-est 0}
     (let [window-size 1200
@@ -92,7 +93,7 @@
       (< wkg (nth (gender-key thresholds) 6)) "Excellent"
       :else "Elite")))
 
-(defn analyze-ride [data & [{:keys [weight height gender max-hr manual-ftp] :as _profile}]]
+(defn analyze-ride [data & [{:keys [weight _height gender max-hr manual-ftp] :as _profile}]]
   (let [records (:records data)
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
         effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)

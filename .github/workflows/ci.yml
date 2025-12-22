@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install Clojure Tools
+        uses: DeLaGuardo/setup-clojure@12.1
+        with:
+          cli: 'latest'
+
+      - name: Run Tests
+        run: clojure -M:test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      
+      - name: Install clj-kondo
+        uses: DeLaGuardo/setup-clojure@12.1
+        with:
+          clj-kondo: 'latest'
+
+      - name: Run clj-kondo linting
+        run: clj-kondo --lint src test --config '{:output {:format :json}}'
