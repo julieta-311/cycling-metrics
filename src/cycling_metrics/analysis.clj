@@ -63,7 +63,12 @@
     0.0))
 
 (defn classify-performance [wkg gender]
-  (let [gender-key (keyword (or gender "male"))
+  (let [gender-str (str (or gender "female"))
+        gender-key (cond
+                     (or (= gender-str "male") 
+                         (= gender-str "trans_ftm") 
+                         (= gender-str "nonbinary_male")) :male
+                     :else :female)
         thresholds {:male   [2.0 2.5 3.0 3.5 4.0 4.5 5.0]
                     :female [1.5 2.0 2.5 3.0 3.5 4.0 4.5]}]
     (cond
@@ -72,18 +77,21 @@
       (< wkg (nth (gender-key thresholds) 2)) "Moderate"
       (< wkg (nth (gender-key thresholds) 3)) "Good"
       (< wkg (nth (gender-key thresholds) 4)) "Very Good"
-      (< wkg (nth (gender-key thresholds) 5)) "Excellent"
+      (< wkg (nth (gender-key thresholds) 5)) "Advanced"
+      (< wkg (nth (gender-key thresholds) 6)) "Excellent"
       :else "Elite")))
 
-(defn analyze-ride [data & [{:keys [weight gender max-hr] :as _profile}]]
+(defn analyze-ride [data & [{:keys [weight gender max-hr manual-ftp] :as _profile}]]
   (let [records (:records data)
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
-        zones (calculate-zones ftp)
+        effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)
+        zones (calculate-zones effective-ftp)
         hr-zones (calculate-hr-zones max-hr)
         time-in-zones (calculate-time-in-zones records zones)
-        wkg (calculate-wkg ftp weight)
+        wkg (calculate-wkg effective-ftp weight)
         classification (classify-performance wkg gender)]
-    {:ftp ftp
+    {:ftp effective-ftp
+     :estimated-ftp ftp ;; Keep original estimate for reference
      :lthr-est lthr-est
      :zones zones
      :time-in-zones time-in-zones

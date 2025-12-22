@@ -24,13 +24,19 @@
                [:input {:type "file" :name "file" :accept ".fit" :required true}]]
               [:label "Weight (kg)"
                [:input {:type "number" :name "weight" :step "0.1" :placeholder "e.g. 75.0"}]]
-              [:label "Gender"
+              [:label "Gender / Category"
                [:select {:name "gender"}
-                [:option {:value "male" :selected true} "Male"]
-                [:option {:value "female"} "Female"]]]]
+                [:option {:value "female" :selected true} "Female"]
+                [:option {:value "male"} "Male"]
+                [:option {:value "trans_mtf"} "Transgender (MTF)"]
+                [:option {:value "trans_ftm"} "Transgender (FTM)"]
+                [:option {:value "nonbinary_female"} "Non-Binary (Female Standards)"]
+                [:option {:value "nonbinary_male"} "Non-Binary (Male Standards)"]]]]
              [:div.grid
               [:label "Max Heart Rate (bpm) (Optional)"
-               [:input {:type "number" :name "max_hr" :placeholder "e.g. 190"}]]]
+               [:input {:type "number" :name "max_hr" :placeholder "e.g. 190"}]]
+              [:label "Manual FTP (Watts) (Optional)"
+               [:input {:type "number" :name "manual_ftp" :placeholder "Override calculated FTP"}]]]
              [:button {:type "submit"} "Analyze"]]]])})
 
 (defn upload-handler [request]
@@ -38,11 +44,12 @@
         file (get params "file")
         weight (let [w (get params "weight")] (if (not-empty w) (Double/parseDouble w) nil))
         max-hr (let [h (get params "max_hr")] (if (not-empty h) (Double/parseDouble h) nil))
+        manual-ftp (let [f (get params "manual_ftp")] (if (not-empty f) (Integer/parseInt f) nil))
         gender (get params "gender")]
     (if file
       (let [temp-file (:tempfile file)
             data (fit/parse-fit temp-file)
-            analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr})
+            analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr :manual-ftp manual-ftp})
             
             ;; Prepare data for Chart.js (Time in Zone)
             ;; Order zones from easy to hard
@@ -73,15 +80,17 @@
                   
                   [:div.grid
                    [:div
-                    [:h3 "Estimated FTP"]
+                    [:h3 "FTP"]
                     [:h2 (str (:ftp analysis-result) " W")]
-                    (when low-effort?
+                    (when (not= (:ftp analysis-result) (:estimated-ftp analysis-result))
+                      [:small "(Manually set. Estimated: " (:estimated-ftp analysis-result) " W)"])
+                    (when (and low-effort? (= (:ftp analysis-result) (:estimated-ftp analysis-result)))
                       [:article {:style "background-color: #fff3cd; color: #856404; border-color: #ffeeba;"}
                        [:strong "Warning: "] "Your estimated LTHR is quite low compared to your Max HR. This suggests this ride might not have been a maximal effort, so this FTP estimate is likely underestimated."])]
                    [:div
                     [:h3 "Performance"]
                     [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]
-                    [:small (str "Profile: " (or gender "male (default)") ", " (or weight "-") " kg, Max HR: " (or max-hr "-"))]]
+                    [:small (str "Profile: " (or gender "female (default)") ", " (or weight "-") " kg, Max HR: " (or max-hr "-"))]]
                    [:div
                      [:h3 "Est. LTHR"]
                      [:p (str (:lthr-est analysis-result) " bpm")]]]
