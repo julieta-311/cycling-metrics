@@ -28,17 +28,21 @@
                [:select {:name "gender"}
                 [:option {:value "male"} "Male"]
                 [:option {:value "female"} "Female"]]]]
+             [:div.grid
+              [:label "Max Heart Rate (bpm) (Optional)"
+               [:input {:type "number" :name "max_hr" :placeholder "e.g. 190"}]]]
              [:button {:type "submit"} "Analyze"]]]])})
 
 (defn upload-handler [request]
   (let [params (:params request)
         file (get params "file")
         weight (let [w (get params "weight")] (if (not-empty w) (Double/parseDouble w) nil))
+        max-hr (let [h (get params "max_hr")] (if (not-empty h) (Double/parseDouble h) nil))
         gender (get params "gender")]
     (if file
       (let [temp-file (:tempfile file)
             data (fit/parse-fit temp-file)
-            analysis-result (analysis/analyze-ride data {:weight weight :gender gender})
+            analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr})
             ;; Prepare data for Chart.js
             zone-labels (map name (keys (:zones analysis-result)))
             zone-data (map (fn [[_ [min max]]] [min max]) (:zones analysis-result))
@@ -62,20 +66,33 @@
                     [:h2 (str (:ftp analysis-result) " W")]]
                    [:div
                     [:h3 "Performance"]
-                    [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]]]
+                    [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]]
+                   [:div
+                     [:h3 "Est. LTHR"]
+                     [:p (str (:lthr-est analysis-result) " bpm")]]]
                   
                   [:article
-                   [:h3 "Training Zones"]
+                   [:h3 "Power Training Zones"]
                    [:canvas#zonesChart]]
 
-                  [:div
-                   [:h4 "Zone Details"]
-                   [:table
-                    [:thead
-                     [:tr [:th "Zone"] [:th "Range (Watts)"]]]
-                    [:tbody
-                     (for [[zone [min max]] (:zones analysis-result)]
-                       [:tr [:td (name zone)] [:td (str min " - " max)]])]]]
+                  [:div.grid
+                   [:div
+                    [:h4 "Power Zone Details"]
+                    [:table
+                     [:thead
+                      [:tr [:th "Zone"] [:th "Range (Watts)"]]]
+                     [:tbody
+                      (for [[zone [min max]] (:zones analysis-result)]
+                        [:tr [:td (name zone)] [:td (str min " - " max)]])]]]
+                   (when (:hr-zones analysis-result)
+                     [:div
+                      [:h4 "Heart Rate Zones (Max HR Based)"]
+                      [:table
+                       [:thead
+                        [:tr [:th "Zone"] [:th "Range (bpm)"]]]
+                       [:tbody
+                        (for [[zone [min max]] (sort-by first (:hr-zones analysis-result))]
+                          [:tr [:td (name zone)] [:td (str min " - " max)]])]]])]
 
                   [:a {:href "/"} "Upload another"]
                   

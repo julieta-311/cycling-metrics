@@ -3,15 +3,17 @@
            [java.io InputStream]))
 
 (defn parse-fit [file]
-  (let [power-data (atom [])
+  (let [records (atom [])
         decode (Decode.)
         broadcaster (MesgBroadcaster. decode)
         listener (reify RecordMesgListener
                    (onMesg [_ mesg]
-                     (when (and mesg (.getPower mesg))
-                       (swap! power-data conj (Short/toUnsignedInt (.getPower mesg))))))]
+                     (let [power (when (and mesg (.getPower mesg)) (Short/toUnsignedInt (.getPower mesg)))
+                           hr    (when (and mesg (.getHeartRate mesg)) (Short/toUnsignedInt (.getHeartRate mesg)))]
+                       (when (or power hr)
+                         (swap! records conj {:power (or power 0) :heart-rate (or hr 0)})))))]
     (.addListener broadcaster listener)
     (with-open [in (clojure.java.io/input-stream file)]
        ;; The read method returns boolean (success)
        (.read decode in broadcaster))
-    {:power @power-data}))
+    {:records @records}))
