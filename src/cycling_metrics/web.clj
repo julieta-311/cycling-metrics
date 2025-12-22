@@ -51,17 +51,28 @@
             data (fit/parse-fit temp-file)
             analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr :manual-ftp manual-ftp})
             
-            ;; Prepare data for Chart.js (Time in Zone)
-            ;; Order zones from easy to hard
+            ;; Prepare data for Chart.js (Dual Axis: Time & HR)
             ordered-zones [:active-recovery :endurance :tempo :threshold :vo2-max :anaerobic :neuromuscular]
             zone-labels (map name ordered-zones)
-            ;; Convert seconds to minutes for better display
-            time-data (map (fn [z] (/ (get (:time-in-zones analysis-result) z 0) 60.0)) ordered-zones)
+            
+            ;; Extract data series
+            time-data (map (fn [z] (/ (get-in (:zone-stats analysis-result) [z :time] 0) 60.0)) ordered-zones)
+            hr-data   (map (fn [z] (get-in (:zone-stats analysis-result) [z :avg-hr] 0)) ordered-zones)
             
             chart-data {:labels zone-labels
-                        :datasets [{:label "Time in Zone (Minutes)"
+                        :datasets [{:label "Time (min)"
                                     :data time-data
-                                    :backgroundColor ["#9e9e9e" "#2196f3" "#4caf50" "#ffeb3b" "#ff9800" "#f44336" "#9c27b0"]}]}
+                                    :backgroundColor ["#9e9e9e" "#2196f3" "#4caf50" "#ffeb3b" "#ff9800" "#f44336" "#9c27b0"]
+                                    :yAxisID "y-time"
+                                    :order 2}
+                                   {:label "Avg HR (bpm)"
+                                    :data hr-data
+                                    :type "line"
+                                    :borderColor "#000"
+                                    :borderWidth 2
+                                    :pointBackgroundColor "#000"
+                                    :yAxisID "y-hr"
+                                    :order 1}]}
             
             ;; Validity Check
             low-effort? (and max-hr 
@@ -96,7 +107,7 @@
                      [:p (str (:lthr-est analysis-result) " bpm")]]]
                   
                   [:article
-                   [:h3 "Time in Power Zones"]
+                   [:h3 "Time in Power Zones & Avg Heart Rate"]
                    [:canvas#zonesChart]]
 
                   [:div.grid
@@ -104,14 +115,17 @@
                     [:h4 "Power Zone Details"]
                     [:table
                      [:thead
-                      [:tr [:th "Zone"] [:th "Range (Watts)"] [:th "Time"]]]
+                      [:tr [:th "Zone"] [:th "Range (Watts)"] [:th "Time"] [:th "Avg HR"]]]
                      [:tbody
                       (for [zone ordered-zones
                             :let [[min max] (get (:zones analysis-result) zone)
-                                  seconds (get (:time-in-zones analysis-result) zone 0)]]
+                                  stats (get (:zone-stats analysis-result) zone)
+                                  seconds (:time stats)
+                                  hr (:avg-hr stats)]]
                         [:tr [:td (name zone)] 
                              [:td (str min " - " max)]
-                             [:td (format "%.1f min" (/ seconds 60.0))]])]]]
+                             [:td (format "%.1f min" (/ seconds 60.0))]
+                             [:td (if (pos? hr) (str hr " bpm") "-")]])]]]
                    (when (:hr-zones analysis-result)
                      [:div
                       [:h4 "Heart Rate Zones (Max HR Based)"]
@@ -133,10 +147,22 @@
                            options: {
                              responsive: true,
                              scales: {
-                               y: { beginAtZero: true, title: { display: true, text: 'Minutes' } }
+                               'y-time': {
+                                 type: 'linear',
+                                 position: 'left',
+                                 beginAtZero: true,
+                                 title: { display: true, text: 'Time (min)' }
+                               },
+                               'y-hr': {
+                                 type: 'linear',
+                                 position: 'right',
+                                 beginAtZero: false,
+                                 title: { display: true, text: 'Heart Rate (bpm)' },
+                                 grid: { drawOnChartArea: false }
+                               }
                              },
                              plugins: {
-                               legend: { display: false }
+                               legend: { display: true, position: 'bottom' }
                              }
                            }
                          });")]]])})

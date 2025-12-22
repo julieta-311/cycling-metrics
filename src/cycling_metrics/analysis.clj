@@ -43,19 +43,30 @@
      :z4 [(int (* 0.80 max-hr)) (int (* 0.89 max-hr))] ;; Threshold
      :z5 [(int (* 0.90 max-hr)) max-hr]})) ;; VO2 Max
 
-(defn calculate-time-in-zones [records zones]
-  (let [initial-counts (reduce (fn [acc k] (assoc acc k 0)) {} (keys zones))]
-    (reduce (fn [counts record]
-              (let [power (:power record)
-                    ;; Find which zone this power value belongs to
-                    [zone-name _] (first (filter (fn [[_ [min max]]]
-                                                   (<= min power max))
-                                                 zones))]
-                (if zone-name
-                  (update counts zone-name inc)
-                  counts)))
-            initial-counts
-            records)))
+(defn calculate-zone-stats [records zones]
+  (let [initial-stats (reduce (fn [acc k] (assoc acc k {:time 0 :hr-sum 0 :hr-count 0})) {} (keys zones))]
+    (->> records
+         (reduce (fn [stats record]
+                   (let [power (:power record)
+                         hr    (:heart-rate record)
+                         ;; Find which zone this power value belongs to
+                         [zone-name _] (first (filter (fn [[_ [min max]]]
+                                                        (<= min power max))
+                                                      zones))]
+                     (if zone-name
+                       (-> stats
+                           (update-in [zone-name :time] inc)
+                           (cond-> (and hr (pos? hr))
+                             (-> (update-in [zone-name :hr-sum] + hr)
+                                 (update-in [zone-name :hr-count] inc))))
+                       stats)))
+                 initial-stats)
+         (reduce-kv (fn [m k v]
+                      (assoc m k {:time (:time v)
+                                  :avg-hr (if (pos? (:hr-count v))
+                                            (int (/ (:hr-sum v) (:hr-count v)))
+                                            0)}))
+                    {}))))
 
 (defn calculate-wkg [ftp weight]
   (if (and weight (pos? weight))
@@ -87,14 +98,14 @@
         effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)
         zones (calculate-zones effective-ftp)
         hr-zones (calculate-hr-zones max-hr)
-        time-in-zones (calculate-time-in-zones records zones)
+        zone-stats (calculate-zone-stats records zones)
         wkg (calculate-wkg effective-ftp weight)
         classification (classify-performance wkg gender)]
     {:ftp effective-ftp
      :estimated-ftp ftp ;; Keep original estimate for reference
      :lthr-est lthr-est
      :zones zones
-     :time-in-zones time-in-zones
+     :zone-stats zone-stats
      :hr-zones hr-zones
      :wkg wkg
      :classification classification}))

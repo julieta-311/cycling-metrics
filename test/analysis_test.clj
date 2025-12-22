@@ -68,7 +68,10 @@
       (is (= "Very Good" (:classification result)))
       (is (= 160 (:lthr-est result)))
       (is (some? (:hr-zones result)))
-      (is (= (* 20 60) (get (:time-in-zones result) :vo2-max)))))
+      ;; Verify new zone-stats structure
+      (let [vo2-stats (get-in result [:zone-stats :vo2-max])]
+        (is (= (* 20 60) (:time vo2-stats)))
+        (is (= 160 (:avg-hr vo2-stats))))))
 
   (testing "uses manual FTP if provided"
     (let [records (make-records 300 160 (* 20 60))
@@ -85,4 +88,4 @@
       ;; The ride was at 300W. 300 < 319.
       ;; Tempo: 350 * 0.76 = 266. 350 * 0.90 = 315.
       ;; So 300W is in Tempo zone.
-      (is (= (* 20 60) (get (:time-in-zones result) :tempo))))))
+      (is (= (* 20 60) (get-in result [:zone-stats :tempo :time]))))))
