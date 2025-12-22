@@ -23,7 +23,9 @@
               [:label "Upload .fit file"
                [:input {:type "file" :name "file" :accept ".fit" :required true}]]
               [:label "Weight (kg)"
-               [:input {:type "number" :name "weight" :step "0.1" :placeholder "e.g. 75.0"}]]
+               [:input {:type "number" :name "weight" :step "0.1" :placeholder "e.g. 70.0 (Default)" :min "30" :max "200"}]]
+              [:label "Height (cm)"
+               [:input {:type "number" :name "height" :step "1" :placeholder "e.g. 170 (Default)" :min "100" :max "250"}]]
               [:label "Gender / Category"
                [:select {:name "gender"}
                 [:option {:value "female" :selected true} "Female"]
@@ -39,17 +41,31 @@
                [:input {:type "number" :name "manual_ftp" :placeholder "Override calculated FTP"}]]]
              [:button {:type "submit"} "Analyze"]]]])})
 
+(defn parse-double-safe [s default min-val max-val]
+  (try
+    (let [val (if (not-empty s) (Double/parseDouble s) default)]
+      (if (and (>= val min-val) (<= val max-val))
+        val
+        default))
+    (catch Exception _ default)))
+
 (defn upload-handler [request]
   (let [params (:params request)
         file (get params "file")
-        weight (let [w (get params "weight")] (if (not-empty w) (Double/parseDouble w) nil))
+        raw-weight (get params "weight")
+        raw-height (get params "height")
+        weight (parse-double-safe raw-weight 70.0 20.0 300.0)
+        height (parse-double-safe raw-height 170.0 100.0 250.0)
+        weight-is-default? (or (empty? raw-weight) (not= weight (try (Double/parseDouble raw-weight) (catch Exception _ -1.0))))
+        height-is-default? (or (empty? raw-height) (not= height (try (Double/parseDouble raw-height) (catch Exception _ -1.0))))
+        
         max-hr (let [h (get params "max_hr")] (if (not-empty h) (Double/parseDouble h) nil))
         manual-ftp (let [f (get params "manual_ftp")] (if (not-empty f) (Integer/parseInt f) nil))
         gender (get params "gender")]
     (if file
       (let [temp-file (:tempfile file)
             data (fit/parse-fit temp-file)
-            analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr :manual-ftp manual-ftp})
+            analysis-result (analysis/analyze-ride data {:weight weight :height height :gender gender :max-hr max-hr :manual-ftp manual-ftp})
             
             ;; Prepare data for Chart.js (Dual Axis: Time & HR)
             ordered-zones [:active-recovery :endurance :tempo :threshold :vo2-max :anaerobic :neuromuscular]
@@ -101,7 +117,14 @@
                    [:div
                     [:h3 "Performance"]
                     [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]
-                    [:small (str "Profile: " (or gender "female (default)") ", " (or weight "-") " kg, Max HR: " (or max-hr "-"))]]
+                    [:small 
+                     (str "Profile: " (or gender "female (default)"))
+                     [:br]
+                     (str "Weight: " weight " kg" (when weight-is-default? " (Default)"))
+                     [:br]
+                     (str "Height: " height " cm" (when height-is-default? " (Default)"))
+                     [:br]
+                     (str "Max HR: " (or max-hr "-"))]]
                    [:div
                      [:h3 "Est. LTHR"]
                      [:p (str (:lthr-est analysis-result) " bpm")]]]

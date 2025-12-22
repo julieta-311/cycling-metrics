@@ -92,7 +92,7 @@
       (< wkg (nth (gender-key thresholds) 6)) "Excellent"
       :else "Elite")))
 
-(defn analyze-ride [data & [{:keys [weight gender max-hr manual-ftp] :as _profile}]]
+(defn analyze-ride [data & [{:keys [weight height gender max-hr manual-ftp] :as _profile}]]
   (let [records (:records data)
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
         effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)
