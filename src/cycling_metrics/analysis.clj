@@ -21,13 +21,19 @@
        :lthr-est (int avg-hr)})))
 
 (defn calculate-zones [ftp]
-  {:active-recovery [0 (int (* 0.55 ftp))]
-   :endurance       [(int (* 0.56 ftp)) (int (* 0.75 ftp))]
-   :tempo           [(int (* 0.76 ftp)) (int (* 0.90 ftp))]
-   :threshold       [(int (* 0.91 ftp)) (int (* 1.05 ftp))]
-   :vo2-max         [(int (* 1.06 ftp)) (int (* 1.20 ftp))]
-   :anaerobic       [(int (* 1.21 ftp)) (int (* 1.50 ftp))]
-   :neuromuscular   [(int (* 1.51 ftp)) 9999]})
+  (let [z1-max (int (Math/round (* 0.55 ftp)))
+        z2-max (int (Math/round (* 0.75 ftp)))
+        z3-max (int (Math/round (* 0.90 ftp)))
+        z4-max (int (Math/round (* 1.05 ftp)))
+        z5-max (int (Math/round (* 1.20 ftp)))
+        z6-max (int (Math/round (* 1.50 ftp)))]
+    {:active-recovery [0 z1-max]
+     :endurance       [(inc z1-max) z2-max]
+     :tempo           [(inc z2-max) z3-max]
+     :threshold       [(inc z3-max) z4-max]
+     :vo2-max         [(inc z4-max) z5-max]
+     :anaerobic       [(inc z5-max) z6-max]
+     :neuromuscular   [(inc z6-max) 9999]}))
 
 (defn calculate-hr-zones [max-hr]
   (when (and max-hr (pos? max-hr))
@@ -36,6 +42,20 @@
      :z3 [(int (* 0.70 max-hr)) (int (* 0.79 max-hr))] ;; Tempo
      :z4 [(int (* 0.80 max-hr)) (int (* 0.89 max-hr))] ;; Threshold
      :z5 [(int (* 0.90 max-hr)) max-hr]})) ;; VO2 Max
+
+(defn calculate-time-in-zones [records zones]
+  (let [initial-counts (reduce (fn [acc k] (assoc acc k 0)) {} (keys zones))]
+    (reduce (fn [counts record]
+              (let [power (:power record)
+                    ;; Find which zone this power value belongs to
+                    [zone-name _] (first (filter (fn [[_ [min max]]]
+                                                   (<= min power max))
+                                                 zones))]
+                (if zone-name
+                  (update counts zone-name inc)
+                  counts)))
+            initial-counts
+            records)))
 
 (defn calculate-wkg [ftp weight]
   (if (and weight (pos? weight))
@@ -60,11 +80,13 @@
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
         zones (calculate-zones ftp)
         hr-zones (calculate-hr-zones max-hr)
+        time-in-zones (calculate-time-in-zones records zones)
         wkg (calculate-wkg ftp weight)
         classification (classify-performance wkg gender)]
     {:ftp ftp
      :lthr-est lthr-est
      :zones zones
+     :time-in-zones time-in-zones
      :hr-zones hr-zones
      :wkg wkg
      :classification classification}))

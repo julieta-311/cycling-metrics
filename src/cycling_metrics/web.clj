@@ -26,7 +26,7 @@
                [:input {:type "number" :name "weight" :step "0.1" :placeholder "e.g. 75.0"}]]
               [:label "Gender"
                [:select {:name "gender"}
-                [:option {:value "male"} "Male"]
+                [:option {:value "male" :selected true} "Male"]
                 [:option {:value "female"} "Female"]]]]
              [:div.grid
               [:label "Max Heart Rate (bpm) (Optional)"
@@ -43,13 +43,23 @@
       (let [temp-file (:tempfile file)
             data (fit/parse-fit temp-file)
             analysis-result (analysis/analyze-ride data {:weight weight :gender gender :max-hr max-hr})
-            ;; Prepare data for Chart.js
-            zone-labels (map name (keys (:zones analysis-result)))
-            zone-data (map (fn [[_ [min max]]] [min max]) (:zones analysis-result))
+            
+            ;; Prepare data for Chart.js (Time in Zone)
+            ;; Order zones from easy to hard
+            ordered-zones [:active-recovery :endurance :tempo :threshold :vo2-max :anaerobic :neuromuscular]
+            zone-labels (map name ordered-zones)
+            ;; Convert seconds to minutes for better display
+            time-data (map (fn [z] (/ (get (:time-in-zones analysis-result) z 0) 60.0)) ordered-zones)
+            
             chart-data {:labels zone-labels
-                        :datasets [{:label "Power Range (Watts)"
-                                    :data zone-data
-                                    :backgroundColor ["#4caf50" "#8bc34a" "#ffeb3b" "#ff9800" "#f44336" "#e91e63" "#9c27b0"]}]}]
+                        :datasets [{:label "Time in Zone (Minutes)"
+                                    :data time-data
+                                    :backgroundColor ["#9e9e9e" "#2196f3" "#4caf50" "#ffeb3b" "#ff9800" "#f44336" "#9c27b0"]}]}
+            
+            ;; Validity Check
+            low-effort? (and max-hr 
+                             (:lthr-est analysis-result)
+                             (< (:lthr-est analysis-result) (* 0.8 max-hr)))]
         {:status 200
          :headers {"Content-Type" "text/html"}
          :body (html5
@@ -60,19 +70,24 @@
                 [:body
                  [:main.container
                   [:h1 "Ride Analysis"]
+                  
                   [:div.grid
                    [:div
                     [:h3 "Estimated FTP"]
-                    [:h2 (str (:ftp analysis-result) " W")]]
+                    [:h2 (str (:ftp analysis-result) " W")]
+                    (when low-effort?
+                      [:article {:style "background-color: #fff3cd; color: #856404; border-color: #ffeeba;"}
+                       [:strong "Warning: "] "Your estimated LTHR is quite low compared to your Max HR. This suggests this ride might not have been a maximal effort, so this FTP estimate is likely underestimated."])]
                    [:div
                     [:h3 "Performance"]
-                    [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]]
+                    [:p (format "%.2f W/kg (%s)" (:wkg analysis-result) (:classification analysis-result))]
+                    [:small (str "Profile: " (or gender "male (default)") ", " (or weight "-") " kg, Max HR: " (or max-hr "-"))]]
                    [:div
                      [:h3 "Est. LTHR"]
                      [:p (str (:lthr-est analysis-result) " bpm")]]]
                   
                   [:article
-                   [:h3 "Power Training Zones"]
+                   [:h3 "Time in Power Zones"]
                    [:canvas#zonesChart]]
 
                   [:div.grid
@@ -80,10 +95,14 @@
                     [:h4 "Power Zone Details"]
                     [:table
                      [:thead
-                      [:tr [:th "Zone"] [:th "Range (Watts)"]]]
+                      [:tr [:th "Zone"] [:th "Range (Watts)"] [:th "Time"]]]
                      [:tbody
-                      (for [[zone [min max]] (:zones analysis-result)]
-                        [:tr [:td (name zone)] [:td (str min " - " max)]])]]]
+                      (for [zone ordered-zones
+                            :let [[min max] (get (:zones analysis-result) zone)
+                                  seconds (get (:time-in-zones analysis-result) zone 0)]]
+                        [:tr [:td (name zone)] 
+                             [:td (str min " - " max)]
+                             [:td (format "%.1f min" (/ seconds 60.0))]])]]]
                    (when (:hr-zones analysis-result)
                      [:div
                       [:h4 "Heart Rate Zones (Max HR Based)"]
@@ -104,20 +123,11 @@
                            data: chartData,
                            options: {
                              responsive: true,
-                             indexAxis: 'y',
                              scales: {
-                               x: { beginAtZero: true, title: { display: true, text: 'Watts' } }
+                               y: { beginAtZero: true, title: { display: true, text: 'Minutes' } }
                              },
                              plugins: {
-                               legend: { display: false },
-                               tooltip: {
-                                 callbacks: {
-                                    label: function(context) {
-                                       const raw = context.raw;
-                                       return raw[0] + ' - ' + raw[1] + ' W';
-                                    }
-                                 }
-                               }
+                               legend: { display: false }
                              }
                            }
                          });")]]])})
