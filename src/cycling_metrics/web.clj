@@ -19,13 +19,13 @@
             [:p "Upload your Zwift .fit file to analyze your performance."]
             [:form {:action "/upload" :method "post" :enctype "multipart/form-data"}
              [:div.grid
-              [:label "Upload .fit file"
+              [:label {:data-tooltip "Required to parse the ride data."} "Upload .fit file"
                [:input {:type "file" :name "file" :accept ".fit" :required true}]]
-              [:label "Weight (kg)"
+              [:label {:data-tooltip "Used to calculate Watts/kg performance metric."} "Weight (kg)"
                [:input {:type "number" :name "weight" :step "0.1" :placeholder "e.g. 70.0 (Default)" :min "30" :max "200"}]]
-              [:label "Height (cm)"
+              [:label {:data-tooltip "Stored for future metrics (e.g., BMI)."} "Height (cm)"
                [:input {:type "number" :name "height" :step "1" :placeholder "e.g. 170 (Default)" :min "100" :max "250"}]]
-              [:label "Gender / Category"
+              [:label {:data-tooltip "Determines the physiological standards for performance classification."} "Gender / Category"
                [:select {:name "gender"}
                 [:option {:value "female" :selected true} "Female"]
                 [:option {:value "male"} "Male"]
@@ -34,9 +34,9 @@
                 [:option {:value "nonbinary_female"} "Non-Binary (Female Standards)"]
                 [:option {:value "nonbinary_male"} "Non-Binary (Male Standards)"]]]]
              [:div.grid
-              [:label "Max Heart Rate (bpm) (Optional)"
+              [:label {:data-tooltip "Defines Heart Rate Zones and validates effort intensity."} "Max Heart Rate (bpm) (Optional)"
                [:input {:type "number" :name "max_hr" :placeholder "e.g. 190"}]]
-              [:label "Manual FTP (Watts) (Optional)"
+              [:label {:data-tooltip "Overrides estimation. Use if you know your true FTP."} "Manual FTP (Watts) (Optional)"
                [:input {:type "number" :name "manual_ftp" :placeholder "Override calculated FTP"}]]]
              [:button {:type "submit"} "Analyze"]]]])})
 

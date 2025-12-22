@@ -33,7 +33,7 @@
   (testing "classifies performance based on W/kg and gender"
     (is (= "Good" (analysis/classify-performance 3.2 "male")))
     (is (= "Excellent" (analysis/classify-performance 4.1 "female")))
-    (is (= "Untrained" (analysis/classify-performance 1.0 "male")))
+    (is (= "Recovery" (analysis/classify-performance 1.0 "male")))
     (is (= "Elite" (analysis/classify-performance 6.0 "male"))))
   
   (testing "defaults to female if gender is not provided"

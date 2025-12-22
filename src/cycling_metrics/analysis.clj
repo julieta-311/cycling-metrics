@@ -84,7 +84,7 @@
         thresholds {:male   [2.0 2.5 3.0 3.5 4.0 4.5 5.0]
                     :female [1.5 2.0 2.5 3.0 3.5 4.0 4.5]}]
     (cond
-      (< wkg (nth (gender-key thresholds) 0)) "Untrained"
+      (< wkg (nth (gender-key thresholds) 0)) "Recovery"
       (< wkg (nth (gender-key thresholds) 1)) "Fair"
       (< wkg (nth (gender-key thresholds) 2)) "Moderate"
       (< wkg (nth (gender-key thresholds) 3)) "Good"
