@@ -5,4 +5,7 @@
         metosin/reitit {:mvn/version "0.7.2"}
         hiccup/hiccup {:mvn/version "2.0.0-alpha2"}
         cheshire/cheshire {:mvn/version "5.13.0"}}
- :aliases {:run {:main-opts ["-m" "cycling-metrics.core"]}}}
+ :aliases {:run {:main-opts ["-m" "cycling-metrics.core"]}
+           :test {:extra-paths ["test"]
+                  :extra-deps {io.github.cognitect-labs/test-runner {:git/sha "3f288f1f16d167723ad87cc35b1dfee3c1681e10"}}
+                  :main-opts ["-m" "cognitect.test-runner"]}}}
