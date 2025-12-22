@@ -20,8 +20,34 @@
    :anaerobic       [(int (* 1.21 ftp)) (int (* 1.50 ftp))]
    :neuromuscular   [(int (* 1.51 ftp)) 9999]})
 
-(defn analyze-ride [data]
+(defn calculate-wkg [ftp weight]
+  (if (and weight (pos? weight))
+    (double (/ ftp weight))
+    0.0))
+
+(defn classify-performance [wkg gender]
+  ;; Rough approximation of 20-min power / FTP categorization
+  ;; Based on Coggan Power Profile (simplified)
+  (let [gender-key (keyword (or gender "male"))
+        ;; Thresholds: [Untrained, Fair, Moderate, Good, Very Good, Excellent, Elite]
+        thresholds {:male   [2.0 2.5 3.0 3.5 4.0 4.5 5.0]
+                    :female [1.5 2.0 2.5 3.0 3.5 4.0 4.5]}]
+    (cond
+      (< wkg (nth (gender-key thresholds) 0)) "Untrained"
+      (< wkg (nth (gender-key thresholds) 1)) "Fair"
+      (< wkg (nth (gender-key thresholds) 2)) "Moderate"
+      (< wkg (nth (gender-key thresholds) 3)) "Good"
+      (< wkg (nth (gender-key thresholds) 4)) "Very Good"
+      (< wkg (nth (gender-key thresholds) 5)) "Excellent"
+      :else "Elite")))
+
+(defn analyze-ride [data & [{:keys [weight gender] :as _profile}]]
   (let [power-records (:power data) ;; Expecting a list of power values
-        ftp (calculate-ftp power-records)]
+        ftp (calculate-ftp power-records)
+        zones (calculate-zones ftp)
+        wkg (calculate-wkg ftp weight)
+        classification (classify-performance wkg gender)]
     {:ftp ftp
-     :zones (calculate-zones ftp)}))
+     :zones zones
+     :wkg wkg
+     :classification classification}))

@@ -34,3 +34,25 @@
               :vo2-max         [212 240]
               :anaerobic       [242 300]
               :neuromuscular   [302 9999]} zones)))))
+
+(deftest calculate-wkg-test
+  (testing "calculates watts per kg correctly"
+    (is (= 4.0 (analysis/calculate-wkg 300 75.0)))
+    (is (= 0.0 (analysis/calculate-wkg 300 nil)))
+    (is (= 0.0 (analysis/calculate-wkg 300 0)))))
+
+(deftest classify-performance-test
+  (testing "classifies performance based on W/kg and gender"
+    (is (= "Good" (analysis/classify-performance 3.2 "male")))
+    (is (= "Elite" (analysis/classify-performance 4.1 "female")))
+    (is (= "Untrained" (analysis/classify-performance 1.0 "male")))
+    (is (= "Elite" (analysis/classify-performance 6.0 "male")))))
+
+(deftest analyze-ride-test
+  (testing "analyzes ride with profile data"
+    (let [power-data {:power (into [] (repeat (* 20 60) 300))}
+          profile {:weight 75.0 :gender "male"}
+          result (analysis/analyze-ride power-data profile)]
+      (is (= 285 (:ftp result))) ;; 300 * 0.95 = 285
+      (is (= 3.8 (:wkg result))) ;; 285 / 75.0 = 3.8
+      (is (= "Very Good" (:classification result))))))
