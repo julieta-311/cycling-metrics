@@ -1,11 +1,14 @@
-{:paths ["src" "resources"]
+ {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
-        com.garmin/fit {:mvn/version "21.141.0"} ; Using a recent version
+        com.garmin/fit {:mvn/version "21.141.0"}
         http-kit/http-kit {:mvn/version "2.7.0"}
         metosin/reitit {:mvn/version "0.7.2"}
         hiccup/hiccup {:mvn/version "2.0.0-alpha2"}
         cheshire/cheshire {:mvn/version "5.13.0"}}
- :aliases {:run {:main-opts ["-m" "cycling-metrics.core"]}
-           :test {:extra-paths ["test"]
-                  :extra-deps {io.github.cognitect-labs/test-runner {:git/sha "3f288f1f16d167723ad87cc35b1dfee3c1681e10"}}
-                  :main-opts ["-m" "cognitect.test-runner"]}}}
+ :aliases 
+ {:run {:main-opts ["-m" "cycling-metrics.core"]}
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner {:git/sha "3f288f1f16d167723ad87cc35b1dfee3c1681e10"}}
+         :main-opts ["-m" "cognitect.test-runner"]}
+  :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.6"}}
+          :ns-default build}}}
