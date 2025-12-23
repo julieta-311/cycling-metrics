@@ -1,13 +1,15 @@
 # Cycling Metrics App
 
-A Clojure web application for analyzing cycling activity data from `.fit` files. It provides **FTP estimation**, **Power-to-Weight Ratio (W/kg)** analysis, and personalized **Training Zones**.
+A Clojure web application for analysing cycling activity data from `.fit` files. It provides **FTP estimation**, **Power-to-Weight Ratio (W/kg)** analysis, and personalized **Training Zones**.
 
 ![Example Analysis Chart](resources/public/example-chart.png)
 
 ## Features
 
 -   **FTP Estimation**: Estimates Functional Threshold Power (95% of 20-min max avg).
+-   **Running-to-Cycling FTP**: Estimates Cycling FTP from a running power file (approx. 80% of running power).
 -   **Training Zones**: Calculates 7 Power Zones (Coggan) and 5 Heart Rate Zones (Friel).
+-   **Max HR Estimation**: Estimates Max Heart Rate using the Tanaka formula (208 - 0.7 * Age) if not provided.
 -   **Performance Metrics**: W/kg calculation and rider classification (Untrained to Elite).
 -   **Dual-Axis Visualization**: Interactive chart correlating Time-in-Zone with Average Heart Rate.
 -   **Inclusive Analysis**: Gender-inclusive classification standards (MTF/FTM/Non-Binary).
@@ -16,6 +18,8 @@ A Clojure web application for analyzing cycling activity data from `.fit` files.
 ## Science & Models
 
 *   **FTP**: 95% of 20-min Power (Allen & Coggan).
+*   **Running FTP Conversion**: ~80% of Running Power (Rough estimate due to efficiency differences).
+*   **Max Heart Rate**: Tanaka Formula ($208 - 0.7 \times \text{Age}$).
 *   **Power Zones**: Coggan 7-Zone Model.
 *   **Heart Rate**: Friel Percentage of Max HR.
 *   **Classification**: Coggan Power Profile Tables (Gender-specific baselines).
