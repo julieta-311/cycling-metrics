@@ -27,7 +27,16 @@
               :anaerobic       [241 300]
               :neuromuscular   [301 9999]} zones)))))
 
-;; ... other tests ...
+(deftest estimation-tests
+  (testing "estimate-max-hr using Tanaka formula"
+    (is (= 187 (analysis/estimate-max-hr 30))) ;; 208 - 0.7 * 30 = 208 - 21 = 187
+    (is (= 173 (analysis/estimate-max-hr 50))) ;; 208 - 0.7 * 50 = 208 - 35 = 173
+    (is (nil? (analysis/estimate-max-hr nil))))
+
+  (testing "estimate-cycling-ftp-from-running-ftp"
+    (let [res (analysis/estimate-cycling-ftp-from-running-ftp 300)]
+      (is (= 240 (:cycling-ftp-est res))) ;; 300 * 0.8 = 240
+      (is (= 300 (:running-ftp res))))))
 
 (deftest classify-performance-test
   (testing "classifies performance based on W/kg and gender"
@@ -57,12 +66,12 @@
     ;; Non-binary Female (Female standard)
     (is (= "Excellent" (analysis/classify-performance 4.1 "nonbinary_female")))))
 
-(deftest analyze-ride-test
-  (testing "analyzes ride with profile data including HR"
+(deftest analyse-ride-test
+  (testing "analyses ride with profile data including HR"
     (let [records (make-records 300 160 (* 20 60))
           data {:records records}
           profile {:weight 75.0 :gender "male" :max-hr 190}
-          result (analysis/analyze-ride data profile)]
+          result (analysis/analyse-ride data profile)]
       (is (= 285 (:ftp result))) ;; 300 * 0.95 = 285
       (is (= 3.8 (:wkg result))) ;; 285 / 75.0 = 3.8
       (is (= "Very Good" (:classification result)))
@@ -78,7 +87,7 @@
           data {:records records}
           ;; Even though estimated FTP is 285, we override with 350
           profile {:weight 75.0 :gender "female" :manual-ftp 350}
-          result (analysis/analyze-ride data profile)]
+          result (analysis/analyse-ride data profile)]
       (is (= 350 (:ftp result)))
       (is (= 285 (:estimated-ftp result)))
       ;; W/kg should use manual FTP
