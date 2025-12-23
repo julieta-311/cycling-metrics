@@ -2,8 +2,6 @@
 
 A Clojure web application for analysing cycling activity data from `.fit` files. It provides **FTP estimation**, **Power-to-Weight Ratio (W/kg)** analysis, and personalized **Training Zones**.
 
-![Example Analysis Chart](resources/public/example-chart.png)
-
 ## Features
 
 - **FTP Estimation**: Estimates Functional Threshold Power (95% of 20-min max avg).
@@ -30,6 +28,10 @@ A Clojure web application for analysing cycling activity data from `.fit` files.
 - **Efficiency Factor (EF)**: Measures Watts per BPM. Monitor this daily; an increase indicates your "aerobic engine" is getting more efficient.
 - **Aerobic Decoupling (Pw:HR)**: Measures internal strain over time. A decoupling $>5\%$ suggests you are pushing beyond your current aerobic base—critical for returning from injury without overtraining.
 - **Variability Index (VI)**: NP/AP ratio. Aim for $<1.05$ to ensure a steady, low-impact recovery ride.
+
+## Preview
+
+![Example Analysis Chart](resources/public/example-chart.png)
 
 ## Quick Start
 
