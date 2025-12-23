@@ -74,6 +74,16 @@
     (double (/ ftp weight))
     0.0))
 
+(defn estimate-max-hr [age]
+  (if (and age (pos? age))
+    (int (- 208 (* 0.7 age)))
+    nil))
+
+(defn estimate-cycling-ftp-from-running-ftp [running-ftp]
+  (when (and running-ftp (pos? running-ftp))
+    {:cycling-ftp-est (int (* running-ftp 0.8)) ;; Rough estimate: 80% of Running Power
+     :running-ftp running-ftp}))
+
 (defn classify-performance [wkg gender]
   (let [gender-str (str (or gender "female"))
         gender-key (cond
@@ -93,7 +103,7 @@
       (< wkg (nth (gender-key thresholds) 6)) "Excellent"
       :else "Elite")))
 
-(defn analyze-ride [data & [{:keys [weight _height gender max-hr manual-ftp] :as _profile}]]
+(defn analyse-ride [data & [{:keys [weight _height gender max-hr manual-ftp] :as _profile}]]
   (let [records (:records data)
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
         effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)
