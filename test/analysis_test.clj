@@ -11,7 +11,7 @@
           stats (analysis/calculate-ftp-stats records)]
       (is (= (int (* 300 0.95)) (:ftp stats)))
       (is (= 160 (:lthr-est stats)))))
-  
+
   ;; ... other calculate-ftp-stats tests can remain ...
 )
 
@@ -44,7 +44,7 @@
     (is (= "Excellent" (analysis/classify-performance 4.1 "female")))
     (is (= "Recovery" (analysis/classify-performance 1.0 "male")))
     (is (= "Elite" (analysis/classify-performance 6.0 "male"))))
-  
+
   (testing "defaults to female if gender is not provided"
     ;; Male threshold for 3.2 is "Good" (3.0-3.5)
     ;; Female threshold for 3.2 is "Very Good" (3.0-3.5 is Good, >3.5 Very Good? No. Female: 3.0 Good, 3.5 Very Good. So 3.2 is Good.)
@@ -66,6 +66,25 @@
     ;; Non-binary Female (Female standard)
     (is (= "Excellent" (analysis/classify-performance 4.1 "nonbinary_female")))))
 
+(deftest variability-and-np-test
+  (testing "Normalized Power calculation"
+    (let [steady-records (make-records 200 140 100)
+          np (analysis/calculate-normalized-power steady-records)]
+      ;; For perfectly steady power, NP should equal AP
+      (is (= 200.0 np))))
+
+  (testing "Variability Index"
+    (let [records (concat (make-records 100 120 60) (make-records 300 160 60))
+          analysis (analysis/analyse-ride {:records records} {:weight 75})]
+      (is (> (:variability-index analysis) 1.1) "Highly variable rides should have high VI"))))
+
+(deftest decoupling-test
+  (testing "Aerobic Decoupling detection"
+    (let [first-half (make-records 200 140 300)
+          second-half (make-records 200 160 300) ;; HR drift up
+          records (concat first-half second-half)
+          decoupling (analysis/calculate-decoupling records)]
+      (is (> decoupling 5.0) "Should detect significant HR drift"))))
 (deftest analyse-ride-test
   (testing "analyses ride with profile data including HR"
     (let [records (make-records 300 160 (* 20 60))
@@ -92,7 +111,7 @@
       (is (= 285 (:estimated-ftp result)))
       ;; W/kg should use manual FTP
       (is (= (/ 350.0 75.0) (:wkg result)))
-      ;; Zones should be based on 350. 
+      ;; Zones should be based on 350.
       ;; Threshold: 350 * 0.91 = 318.5 -> 319. Max 350 * 1.05 = 367.5 -> 368.
       ;; The ride was at 300W. 300 < 319.
       ;; Tempo: 350 * 0.76 = 266. 350 * 0.90 = 315.
