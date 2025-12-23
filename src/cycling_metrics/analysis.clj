@@ -1,26 +1,51 @@
 (ns cycling-metrics.analysis)
 
+;; 1. Utility Functions
 (defn mean [coll]
   (if (empty? coll)
     0.0
-    (/ (apply + coll) (count coll))))
+    (double (/ (apply + coll) (count coll)))))
 
-(defn calculate-ftp-stats 
+;; 2. Core Estimation Logic
+(defn calculate-ftp-stats
   "Finds the best 20-minute power segment and estimates FTP and LTHR."
   [records]
   (if (or (empty? records) (< (count records) 1200))
     {:ftp 0 :lthr-est 0}
     (let [window-size 1200
-          ;; Create sliding windows of records
           windows (partition window-size 1 records)
-          ;; Find the window with the highest average power
-          ;; Note: This can be slow for very long files, but sufficient for now.
           best-window (apply max-key #(mean (map :power %)) windows)
           avg-power (mean (map :power best-window))
           avg-hr    (mean (map :heart-rate best-window))]
       {:ftp (int (* 0.95 avg-power))
        :lthr-est (int avg-hr)})))
 
+(defn calculate-normalized-power [records]
+  (if (empty? records)
+    0.0
+    (let [powers (map :power records)
+          rolling-avgs (map mean (partition 30 1 powers))
+          fourth-powers (map #(Math/pow % 4) rolling-avgs)
+          avg-fourth (mean fourth-powers)]
+      (Math/pow avg-fourth 0.25))))
+
+(defn calculate-decoupling [records]
+  (let [count-recs (count records)
+        mid (quot count-recs 2)]
+    (if (< count-recs 120)
+      0.0
+      (let [[first-half second-half] (split-at mid records)
+            calc-ef (fn [recs]
+                      (let [ap (mean (map :power recs))
+                            ahr (mean (map :heart-rate recs))]
+                        (if (pos? ahr) (/ ap ahr) 0)))
+            ef1 (calc-ef first-half)
+            ef2 (calc-ef second-half)]
+        (if (and (pos? ef1) (pos? ef2))
+          (double (* (/ (- ef1 ef2) ef1) 100))
+          0.0)))))
+
+;; 3. Zone Calculations
 (defn calculate-zones [ftp]
   (let [z1-max (int (Math/round (* 0.55 ftp)))
         z2-max (int (Math/round (* 0.75 ftp)))
@@ -38,11 +63,11 @@
 
 (defn calculate-hr-zones [max-hr]
   (when (and max-hr (pos? max-hr))
-    {:z1 [0 (int (* 0.59 max-hr))]      ;; Recovery
-     :z2 [(int (* 0.60 max-hr)) (int (* 0.69 max-hr))] ;; Endurance
-     :z3 [(int (* 0.70 max-hr)) (int (* 0.79 max-hr))] ;; Tempo
-     :z4 [(int (* 0.80 max-hr)) (int (* 0.89 max-hr))] ;; Threshold
-     :z5 [(int (* 0.90 max-hr)) max-hr]})) ;; VO2 Max
+    {:z1 [0 (int (* 0.59 max-hr))]
+     :z2 [(int (* 0.60 max-hr)) (int (* 0.69 max-hr))]
+     :z3 [(int (* 0.70 max-hr)) (int (* 0.79 max-hr))]
+     :z4 [(int (* 0.80 max-hr)) (int (* 0.89 max-hr))]
+     :z5 [(int (* 0.90 max-hr)) max-hr]}))
 
 (defn calculate-zone-stats [records zones]
   (let [initial-stats (reduce (fn [acc k] (assoc acc k {:time 0 :hr-sum 0 :hr-count 0})) {} (keys zones))]
@@ -50,10 +75,7 @@
          (reduce (fn [stats record]
                    (let [power (:power record)
                          hr    (:heart-rate record)
-                         ;; Find which zone this power value belongs to
-                         [zone-name _] (first (filter (fn [[_ [min max]]]
-                                                        (<= min power max))
-                                                      zones))]
+                         [zone-name _] (first (filter (fn [[_ [min max]]] (<= min power max)) zones))]
                      (if zone-name
                        (-> stats
                            (update-in [zone-name :time] inc)
@@ -69,6 +91,7 @@
                                             0)}))
                     {}))))
 
+;; 4. Performance Metrics & Classification
 (defn calculate-wkg [ftp weight]
   (if (and weight (pos? weight))
     (double (/ ftp weight))
@@ -79,44 +102,48 @@
     (int (- 208 (* 0.7 age)))
     nil))
 
-(defn estimate-cycling-ftp-from-running-ftp [running-ftp]
-  (when (and running-ftp (pos? running-ftp))
-    {:cycling-ftp-est (int (* running-ftp 0.8)) ;; Rough estimate: 80% of Running Power
-     :running-ftp running-ftp}))
-
 (defn classify-performance [wkg gender]
-  (let [gender-str (str (or gender "female"))
-        gender-key (cond
-                     (or (= gender-str "male") 
-                         (= gender-str "trans_ftm") 
-                         (= gender-str "nonbinary_male")) :male
-                     :else :female)
+  (let [gender-key (if (contains? #{"male" "trans_ftm" "nonbinary_male"} (str gender)) :male :female)
         thresholds {:male   [2.0 2.5 3.0 3.5 4.0 4.5 5.0]
-                    :female [1.5 2.0 2.5 3.0 3.5 4.0 4.5]}]
+                    :female [1.5 2.0 2.5 3.0 3.5 4.0 4.5]}
+        vals (gender-key thresholds)]
     (cond
-      (< wkg (nth (gender-key thresholds) 0)) "Recovery"
-      (< wkg (nth (gender-key thresholds) 1)) "Fair"
-      (< wkg (nth (gender-key thresholds) 2)) "Moderate"
-      (< wkg (nth (gender-key thresholds) 3)) "Good"
-      (< wkg (nth (gender-key thresholds) 4)) "Very Good"
-      (< wkg (nth (gender-key thresholds) 5)) "Advanced"
-      (< wkg (nth (gender-key thresholds) 6)) "Excellent"
+      (< wkg (nth vals 0)) "Recovery"
+      (< wkg (nth vals 1)) "Fair"
+      (< wkg (nth vals 2)) "Moderate"
+      (< wkg (nth vals 3)) "Good"
+      (< wkg (nth vals 4)) "Very Good"
+      (< wkg (nth vals 5)) "Advanced"
+      (< wkg (nth vals 6)) "Excellent"
       :else "Elite")))
 
-(defn analyse-ride [data & [{:keys [weight _height gender max-hr manual-ftp] :as _profile}]]
+(defn estimate-cycling-ftp-from-running-ftp [running-ftp]
+  (if (and running-ftp (pos? running-ftp))
+    {:cycling-ftp-est (int (* running-ftp 0.8))
+     :running-ftp running-ftp}
+    {:cycling-ftp-est 0 :running-ftp 0}))
+
+;; 5. Main Analysis Entry Point
+(defn analyse-ride [data & [{:keys [weight gender max-hr manual-ftp] :as _profile}]]
   (let [records (:records data)
         {:keys [ftp lthr-est]} (calculate-ftp-stats records)
         effective-ftp (if (and manual-ftp (pos? manual-ftp)) manual-ftp ftp)
-        zones (calculate-zones effective-ftp)
-        hr-zones (calculate-hr-zones max-hr)
-        zone-stats (calculate-zone-stats records zones)
+        avg-power (mean (map :power records))
+        avg-hr (mean (map :heart-rate records))
+        np (calculate-normalized-power records)
         wkg (calculate-wkg effective-ftp weight)
-        classification (classify-performance wkg gender)]
+        zones (calculate-zones effective-ftp)]
     {:ftp effective-ftp
-     :estimated-ftp ftp ;; Keep original estimate for reference
+     :estimated-ftp ftp
+     :max-hr max-hr
      :lthr-est lthr-est
      :zones zones
-     :zone-stats zone-stats
-     :hr-zones hr-zones
+     :zone-stats (calculate-zone-stats records zones)
+     :hr-zones (calculate-hr-zones max-hr)
      :wkg wkg
-     :classification classification}))
+     :classification (classify-performance wkg gender)
+     :avg-power (int avg-power)
+     :normalized-power (int np)
+     :variability-index (if (pos? avg-power) (/ np avg-power) 1.0)
+     :efficiency-factor (if (pos? avg-hr) (/ avg-power avg-hr) 0.0)
+     :decoupling (calculate-decoupling records)}))
