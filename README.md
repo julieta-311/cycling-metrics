@@ -10,10 +10,9 @@ A Clojure web application for analysing cycling activity data from `.fit` files.
 - **Max HR Estimation**: Estimates Max Heart Rate using the Tanaka formula (208 - 0.7 \* Age) if not provided.
 - **Performance Metrics**: W/kg calculation and rider classification (Untrained to Elite).
 - **Dual-Axis Visualization**: Interactive chart correlating Time-in-Zone with Average Heart Rate.
-- **Inclusive Analysis**: Gender-inclusive classification standards (MTF/FTM/Non-Binary).
 - **Data Parsing**: Extracts Power and Heart Rate from standard `.fit` files (Zwift, Garmin, etc.).
 
-## Science & Models
+## Models
 
 - **FTP**: 95% of 20-min Power (Allen & Coggan).
 - **Running FTP Conversion**: ~80% of Running Power (Rough estimate due to efficiency differences).
